@@ -49,5 +49,7 @@ class DataIngestion:
         
 if __name__ == "__main__":
     obj = DataIngestion()
-    obj.initate_data_ingestion()
-    logging.info('Data Ingestion Completed')
+    train_data, test_data = obj.initate_data_ingestion()
+    logging.info(f"Train Data Path: {train_data}")
+    logging.info(f"Test Data Path: {test_data}")
+
