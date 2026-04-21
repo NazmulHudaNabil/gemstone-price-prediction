@@ -7,6 +7,8 @@ import src.logger  # configures logging via basicConfig as a side-effect
 from src.exception import CustomException
 from sklearn.model_selection import train_test_split
 from dataclasses import dataclass
+from src.components.data_transformation import DataTransformation
+from src.components.model_trainer import ModelTrainer
 
 # Initialize Data Ingestion Configuration
 @dataclass
@@ -52,4 +54,8 @@ if __name__ == "__main__":
     train_data, test_data = obj.initate_data_ingestion()
     logging.info(f"Train Data Path: {train_data}")
     logging.info(f"Test Data Path: {test_data}")
+    train_arr, test_arr, _ = DataTransformation().initiate_data_transformation(train_data, test_data)
+    model_trainer = ModelTrainer()
+    model_trainer.initiate_model_trainer(train_arr, test_arr)
+
 
