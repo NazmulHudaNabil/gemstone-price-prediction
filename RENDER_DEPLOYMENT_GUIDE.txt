@@ -1,0 +1,400 @@
+
+================================================================================
+         RENDER DEPLOYMENT GUIDE - GEMSTONE PRICE PREDICTION (FastAPI)
+================================================================================
+Platform   : Render (https://render.com)
+App Type   : FastAPI Web Service (Docker-based)
+Date       : April 2026
+================================================================================
+
+
+OVERVIEW
+--------
+This guide walks you through deploying your Gemstone Price Prediction FastAPI
+application to Render using Docker. Your project already has a working Dockerfile,
+so the process is straightforward.
+
+Render is a cloud platform that lets you deploy web services for FREE (with limits)
+using Docker or native runtimes, without needing a credit card for basic usage.
+
+--------------------------------------------------------------------------------
+PREREQUISITES (Things You Need Before Starting)
+--------------------------------------------------------------------------------
+
+1. A GitHub account (https://github.com)
+   - Your project code must be pushed to a GitHub repository (public or private).
+
+2. A Render account (https://render.com)
+   - Sign up for FREE at https://render.com
+   - You can sign up using your GitHub account (recommended — easier to connect).
+
+3. Your project must be pushed to GitHub with all the required files:
+   - app.py
+   - Dockerfile
+   - requirements.txt
+   - setup.py
+   - .dockerignore
+   - src/ folder (with all submodules)
+   - templates/ folder (with index.html)
+   - artifacts/ folder (with trained model files)
+
+IMPORTANT: The "artifacts/" folder contains your trained model (.pkl files).
+Make sure it is NOT in .gitignore so it gets pushed to GitHub!
+
+--------------------------------------------------------------------------------
+STEP 1: VERIFY YOUR PROJECT FILES ARE CORRECT
+--------------------------------------------------------------------------------
+
+Before pushing to GitHub, confirm these files look correct:
+
+--- Dockerfile (should already look like this) ---
+
+    FROM python:3.10-slim
+    WORKDIR /app
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+    COPY . .
+    RUN pip install -e . --no-deps
+    EXPOSE 8000
+    CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+This is already correct in your project. No changes needed.
+
+--- .dockerignore (make sure it looks like this) ---
+
+    venv/
+    __pycache__/
+    *.pyc
+    *.pyo
+    .git/
+    .DS_Store
+    catboost_info/
+    notebook/
+    logs/
+    *.egg-info/
+
+This is already correct in your project. No changes needed.
+
+--- requirements.txt (should look like this) ---
+
+    setuptools
+    numpy
+    pandas
+    matplotlib
+    seaborn
+    scikit-learn
+    xgboost
+    catboost
+    uvicorn
+    fastapi
+    pydantic
+    jinja2
+    python-multipart
+
+This is already correct. No changes needed.
+
+--------------------------------------------------------------------------------
+STEP 2: PUSH YOUR PROJECT TO GITHUB
+--------------------------------------------------------------------------------
+
+If you haven't pushed your project to GitHub yet, follow these steps:
+
+Open your Terminal and run the following commands one by one:
+
+  Step 2a: Navigate to your project folder
+  -----------------------------------------
+  cd /Users/mdnazmulhudanabil/Documents/Gemstone-Price-Prediction
+
+
+  Step 2b: Initialize Git (skip if already a git repo)
+  ------------------------------------------------------
+  git init
+
+
+  Step 2c: Check the status of your files
+  -----------------------------------------
+  git status
+
+  (You should see all your project files listed.)
+
+
+  Step 2d: Make sure artifacts/ folder is NOT ignored
+  -----------------------------------------------------
+  Open your .gitignore file in a text editor.
+  Look for a line that says "artifacts/" — if it exists, DELETE it or comment
+  it out by adding a # at the start: # artifacts/
+
+  This is CRITICAL. Without the trained model files, deployment will fail.
+
+
+  Step 2e: Add all files to git
+  ------------------------------
+  git add .
+
+
+  Step 2f: Commit your files
+  ---------------------------
+  git commit -m "Initial commit: Gemstone Price Prediction FastAPI app"
+
+
+  Step 2g: Create a new repository on GitHub
+  -------------------------------------------
+  1. Go to https://github.com
+  2. Click the "+" button (top right) → "New repository"
+  3. Repository name: gemstone-price-prediction (or any name you like)
+  4. Keep it Public or Private (Render works with both)
+  5. Do NOT check "Add a README file" (you already have your files)
+  6. Click "Create repository"
+
+
+  Step 2h: Connect and push to GitHub
+  -------------------------------------
+  GitHub will show you commands. Run these in your terminal:
+
+  git remote add origin https://github.com/YOUR_USERNAME/gemstone-price-prediction.git
+  git branch -M main
+  git push -u origin main
+
+  (Replace YOUR_USERNAME with your actual GitHub username)
+
+  Wait for the upload to complete. Your code is now on GitHub!
+
+--------------------------------------------------------------------------------
+STEP 3: CREATE A RENDER ACCOUNT
+--------------------------------------------------------------------------------
+
+1. Go to https://render.com
+2. Click "Get Started for Free" button
+3. Click "Sign up with GitHub" (strongly recommended — it makes connecting easy)
+4. Authorize Render to access your GitHub account
+5. Complete the sign-up process
+6. You will be taken to your Render Dashboard
+
+--------------------------------------------------------------------------------
+STEP 4: CREATE A NEW WEB SERVICE ON RENDER
+--------------------------------------------------------------------------------
+
+  Step 4a: Start a New Service
+  -----------------------------
+  1. On your Render Dashboard, click the "New +" button (top right area)
+  2. From the dropdown menu, select "Web Service"
+
+  Step 4b: Connect Your GitHub Repository
+  ----------------------------------------
+  1. Click "Connect account" next to GitHub (if not already connected)
+  2. In the search box, type: gemstone-price-prediction
+  3. Find your repository and click "Connect"
+
+  Step 4c: Configure the Service Settings
+  -----------------------------------------
+  Fill in these settings on the configuration page:
+
+  Name:
+    gemstone-price-prediction
+    (or any name you like — this will be part of your URL)
+
+  Region:
+    Oregon (US West) — recommended, or choose what's closest to you
+
+  Branch:
+    main
+
+  Runtime:
+    Docker
+    (VERY IMPORTANT — select "Docker" because your project has a Dockerfile)
+
+  Instance Type:
+    Free
+    (The free tier is enough to test your app. Note: Free tier spins down
+     after 15 minutes of inactivity — first request after that will be slow.)
+
+  Leave all other settings as their defaults for now.
+
+  Step 4d: Click "Create Web Service"
+  -------------------------------------
+  Click the "Create Web Service" button at the bottom of the page.
+  Render will now start building and deploying your application!
+
+--------------------------------------------------------------------------------
+STEP 5: WAIT FOR THE BUILD TO COMPLETE
+--------------------------------------------------------------------------------
+
+After clicking "Create Web Service", Render will:
+
+  1. Clone your GitHub repository
+  2. Build your Docker image (runs pip install, etc.)
+  3. Start the FastAPI server
+
+This process typically takes 5-15 minutes the first time because it needs to
+install catboost, scikit-learn, xgboost, and other heavy packages.
+
+You can watch the live build logs in the "Logs" tab on your Render service page.
+
+What a successful build looks like in the logs:
+  ...
+  Successfully built <image-id>
+  Successfully tagged <image-name>
+  ==> Starting service with 'uvicorn app:app --host 0.0.0.0 --port 8000'
+  INFO:     Started server process
+  INFO:     Waiting for application startup.
+  INFO:     Application startup complete.
+  INFO:     Uvicorn running on http://0.0.0.0:8000
+
+When you see "Your service is live", the deployment is complete!
+
+--------------------------------------------------------------------------------
+STEP 6: ACCESS YOUR DEPLOYED APPLICATION
+--------------------------------------------------------------------------------
+
+Once the build is successful:
+
+1. Go to your Render service page
+2. At the top, you will see a URL like:
+   https://gemstone-price-prediction.onrender.com
+
+3. Click on that URL — your FastAPI app is now LIVE on the internet!
+
+4. Test it:
+   - Home page:   https://gemstone-price-prediction.onrender.com/
+   - API docs:    https://gemstone-price-prediction.onrender.com/docs
+   - Prediction:  https://gemstone-price-prediction.onrender.com/predict (POST)
+
+The /docs endpoint gives you an interactive Swagger UI to test your API.
+
+--------------------------------------------------------------------------------
+STEP 7: RE-DEPLOYING AFTER CODE CHANGES
+--------------------------------------------------------------------------------
+
+Whenever you update your code and push to GitHub, Render can automatically
+redeploy your app.
+
+  Option A: Auto-Deploy (Recommended)
+  -------------------------------------
+  By default, Render enables "Auto-Deploy". This means every time you push
+  new code to your "main" branch on GitHub, Render automatically rebuilds
+  and redeploys your app. No manual action needed.
+
+  How to push updates:
+    git add .
+    git commit -m "Your update message"
+    git push origin main
+
+  Render detects the push and starts a new deployment automatically.
+
+  Option B: Manual Deploy
+  ------------------------
+  In your Render dashboard, go to your service and click "Manual Deploy"
+  → "Deploy latest commit"
+
+--------------------------------------------------------------------------------
+STEP 8: TROUBLESHOOTING COMMON ISSUES
+--------------------------------------------------------------------------------
+
+ISSUE 1: Build fails with "No module named 'src'"
+  CAUSE  : The setup.py package install may have failed.
+  FIX    : Check the build logs. Make sure your Dockerfile has this line:
+             RUN pip install -e . --no-deps
+           Your current Dockerfile already has this, so it should be fine.
+
+ISSUE 2: Build fails with "FileNotFoundError: model.pkl"
+  CAUSE  : The artifacts/ folder was not pushed to GitHub (it was in .gitignore).
+  FIX    : Open .gitignore, remove or comment the "artifacts/" line, then run:
+             git add artifacts/
+             git commit -m "Add model artifacts"
+             git push origin main
+
+ISSUE 3: Build is very slow (15+ minutes)
+  CAUSE  : Installing catboost takes a long time on the first build.
+  FIX    : Just wait. Subsequent builds may be faster if Render caches layers.
+
+ISSUE 4: App loads but prediction returns an error
+  CAUSE  : The model file path may be different inside Docker.
+  FIX    : Make sure your predict pipeline uses paths relative to the project
+           root (e.g., "artifacts/model.pkl" not absolute paths).
+
+ISSUE 5: "Service unavailable" or slow first load on Free tier
+  CAUSE  : Free tier Render services "spin down" after 15 min of inactivity.
+           The first request after spin-down takes 30-60 seconds.
+  FIX    : This is normal on the free tier. Upgrade to a paid plan ($7/month)
+           if you need the app always running instantly.
+
+ISSUE 6: Port-related error during deployment
+  CAUSE  : Render expects the app to listen on the port specified in the
+           Docker CMD command.
+  FIX    : Your Dockerfile already uses port 8000 and --host 0.0.0.0,
+           which is correct. No changes needed.
+
+--------------------------------------------------------------------------------
+STEP 9: ENVIRONMENT VARIABLES (Optional)
+--------------------------------------------------------------------------------
+
+If your app needs any secret keys or environment variables, do NOT put them
+in your code. Use Render's Environment Variables feature instead.
+
+  How to add Environment Variables:
+  1. Go to your Render service dashboard
+  2. Click "Environment" on the left sidebar
+  3. Click "Add Environment Variable"
+  4. Enter the Key and Value
+  5. Click "Save Changes"
+  6. Render will automatically redeploy with the new variables
+
+In your Python code, access them with:
+  import os
+  my_value = os.getenv("MY_VARIABLE_NAME")
+
+--------------------------------------------------------------------------------
+STEP 10: MONITORING YOUR APP
+--------------------------------------------------------------------------------
+
+Render provides basic monitoring tools:
+
+  Logs:
+    - Click "Logs" in your service dashboard to see real-time logs
+    - Use this to debug any runtime errors
+
+  Metrics:
+    - Click "Metrics" to see CPU and memory usage
+
+  Events:
+    - Click "Events" to see deployment history
+
+--------------------------------------------------------------------------------
+FREE TIER LIMITATIONS ON RENDER
+--------------------------------------------------------------------------------
+
+The Render Free tier has these limitations:
+
+  - App spins down after 15 minutes of inactivity
+  - 512 MB RAM limit
+  - Shared CPU
+  - 100 GB bandwidth per month
+  - Build time limit: 400 minutes per month
+
+For a personal project or portfolio, the free tier is more than enough.
+For production use, consider upgrading to the Starter plan ($7/month).
+
+--------------------------------------------------------------------------------
+QUICK REFERENCE CHECKLIST
+--------------------------------------------------------------------------------
+
+[ ] Project files are complete and working locally
+[ ] artifacts/ folder is NOT in .gitignore
+[ ] Code is pushed to GitHub
+[ ] Render account created (signed up with GitHub)
+[ ] New Web Service created on Render
+[ ] Runtime set to "Docker"
+[ ] Branch set to "main"
+[ ] Build completed successfully (check logs)
+[ ] App URL is accessible in browser
+[ ] /docs endpoint works (Swagger UI)
+[ ] /predict endpoint tested with sample data
+
+================================================================================
+YOUR APP WILL BE LIVE AT:
+  https://YOUR-SERVICE-NAME.onrender.com
+================================================================================
+
+Congratulations! Your Gemstone Price Prediction app is now deployed on Render!
+
+================================================================================

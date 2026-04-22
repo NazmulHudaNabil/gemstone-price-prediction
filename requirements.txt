@@ -9,4 +9,6 @@ catboost
 uvicorn
 fastapi
 pydantic
+jinja2 
+python-multipart
 # -e .

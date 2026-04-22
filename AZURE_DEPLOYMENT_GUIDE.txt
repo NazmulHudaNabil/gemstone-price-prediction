@@ -1,0 +1,317 @@
+
+==============================================================
+   AZURE WEB APP DEPLOYMENT GUIDE - GEMSTONE PRICE PREDICTION
+   FastAPI App → Azure App Service (Free/Paid Tier)
+==============================================================
+
+PREREQUISITES (Install these first)
+-------------------------------------
+1. Azure Account  → https://portal.azure.com  (Free account available)
+2. Azure CLI      → https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
+3. Docker Desktop → https://www.docker.com/products/docker-desktop (optional but recommended)
+4. Git installed  → https://git-scm.com/
+
+==============================================================
+STEP 1: PREPARE YOUR PROJECT FILES
+==============================================================
+
+1.1  Make sure your project root looks like this:
+     Gemstone-Price-Prediction/
+     ├── app.py
+     ├── requirements.txt
+     ├── setup.py
+     ├── Dockerfile          <-- we will create this
+     ├── .dockerignore       <-- we will create this
+     ├── src/
+     ├── artifacts/
+     └── templates/
+
+1.2  Open your requirements.txt and make sure it contains
+     these lines (no leading "# -e ."):
+
+        setuptools
+        numpy
+        pandas
+        matplotlib
+        seaborn
+        scikit-learn
+        xgboost
+        catboost
+        uvicorn
+        fastapi
+        pydantic
+        jinja2
+        python-multipart
+
+     Remove the "# -e ." comment line if it is there.
+
+==============================================================
+STEP 2: CREATE A Dockerfile IN YOUR PROJECT ROOT
+==============================================================
+
+Create a new file called "Dockerfile" (no extension) with
+this exact content:
+
+------ START OF Dockerfile ------
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN pip install -e . --no-deps
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+------ END OF Dockerfile ------
+
+
+==============================================================
+STEP 3: CREATE A .dockerignore FILE IN YOUR PROJECT ROOT
+==============================================================
+
+Create a new file called ".dockerignore" with this content:
+
+------ START OF .dockerignore ------
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.DS_Store
+catboost_info/
+notebook/
+logs/
+*.egg-info/
+------ END OF .dockerignore ------
+
+
+==============================================================
+STEP 4: TEST DOCKER LOCALLY (RECOMMENDED)
+==============================================================
+
+Open Terminal and go to your project folder:
+
+   cd /Users/mdnazmulhudanabil/Documents/Gemstone-Price-Prediction
+
+Build the Docker image:
+   docker build -t gemstone-app .
+
+Run it locally:
+   docker run -p 8000:8000 gemstone-app
+
+Open browser → http://localhost:8000
+If it works, you are ready for Azure!
+
+Press CTRL+C to stop.
+
+
+==============================================================
+STEP 5: LOG IN TO AZURE CLI
+==============================================================
+
+Open Terminal and run:
+
+   az login
+
+A browser window will open. Sign in with your Azure account.
+After login, come back to Terminal. You will see a list of
+subscriptions. Copy your Subscription ID.
+
+Set your subscription (replace YOUR_SUBSCRIPTION_ID):
+   az account set --subscription YOUR_SUBSCRIPTION_ID
+
+
+==============================================================
+STEP 6: CREATE AZURE RESOURCES
+==============================================================
+
+Run these commands ONE BY ONE in Terminal:
+
+6.1  Create a Resource Group:
+     az group create \
+       --name gemstone-rg \
+       --location eastus
+
+6.2  Create an Azure Container Registry (to store your Docker image):
+     az acr create \
+       --resource-group gemstone-rg \
+       --name gemstonecr123 \
+       --sku Basic \
+       --admin-enabled true
+
+     NOTE: "gemstonecr123" must be GLOBALLY UNIQUE across Azure.
+     Change the number if it fails (e.g., gemstonecr456).
+
+6.3  Log in to your Container Registry:
+     az acr login --name gemstonecr123
+
+
+==============================================================
+STEP 7: BUILD AND PUSH DOCKER IMAGE TO AZURE
+==============================================================
+
+Make sure you are inside the project folder:
+   cd /Users/mdnazmulhudanabil/Documents/Gemstone-Price-Prediction
+
+7.1  Build the image with the Azure registry tag:
+     docker build -t gemstonecr123.azurecr.io/gemstone-app:latest .
+
+7.2  Push the image to Azure Container Registry:
+     docker push gemstonecr123.azurecr.io/gemstone-app:latest
+
+This may take a few minutes depending on internet speed.
+
+
+==============================================================
+STEP 8: CREATE THE AZURE WEB APP
+==============================================================
+
+8.1  Create an App Service Plan (choose FREE or BASIC tier):
+     az appservice plan create \
+       --name gemstone-plan \
+       --resource-group gemstone-rg \
+       --is-linux \
+       --sku B1
+
+     Tiers:
+       F1  = Free (limited, good for testing)
+       B1  = Basic ($13/month approx, recommended)
+
+8.2  Get your ACR credentials:
+     az acr credential show --name gemstonecr123
+
+     Copy the "username" and one of the "passwords" shown.
+
+8.3  Create the Web App using your Docker image:
+     az webapp create \
+       --resource-group gemstone-rg \
+       --plan gemstone-plan \
+       --name gemstone-price-app \
+       --deployment-container-image-name gemstonecr123.azurecr.io/gemstone-app:latest
+
+     NOTE: "gemstone-price-app" must be globally unique.
+     Azure will give you a URL like:
+       https://gemstone-price-app.azurewebsites.net
+
+8.4  Set Docker credentials so Azure can pull your image:
+     az webapp config container set \
+       --name gemstone-price-app \
+       --resource-group gemstone-rg \
+       --docker-custom-image-name gemstonecr123.azurecr.io/gemstone-app:latest \
+       --docker-registry-server-url https://gemstonecr123.azurecr.io \
+       --docker-registry-server-user gemstonecr123 \
+       --docker-registry-server-password YOUR_ACR_PASSWORD
+
+     Replace YOUR_ACR_PASSWORD with the password from Step 8.2.
+
+
+==============================================================
+STEP 9: CONFIGURE PORT SETTING
+==============================================================
+
+Azure App Service needs to know which port your app uses.
+
+   az webapp config appsettings set \
+     --resource-group gemstone-rg \
+     --name gemstone-price-app \
+     --settings WEBSITES_PORT=8000
+
+
+==============================================================
+STEP 10: VISIT YOUR LIVE APP
+==============================================================
+
+Wait 2-3 minutes for the app to start, then open:
+
+   https://gemstone-price-app.azurewebsites.net
+
+You should see your Gemstone Price Prediction app live!
+
+To check logs if something goes wrong:
+   az webapp log tail \
+     --name gemstone-price-app \
+     --resource-group gemstone-rg
+
+
+==============================================================
+STEP 11: (OPTIONAL) SET UP CONTINUOUS DEPLOYMENT WITH GITHUB
+==============================================================
+
+If you push your code to GitHub, Azure can auto-deploy on
+every git push.
+
+11.1  Push your project to GitHub first (if not done):
+      git init
+      git add .
+      git commit -m "Initial commit"
+      git remote add origin https://github.com/YOUR_USERNAME/gemstone-price-prediction.git
+      git push -u origin main
+
+11.2  In Azure Portal (portal.azure.com):
+      → Go to your Web App "gemstone-price-app"
+      → Click "Deployment Center"
+      → Choose "GitHub" as the source
+      → Authorize and select your repository & branch
+      → Azure will auto-build and deploy on every push!
+
+
+==============================================================
+QUICK REFERENCE - ALL COMMANDS SUMMARY
+==============================================================
+
+az login
+az group create --name gemstone-rg --location eastus
+az acr create --resource-group gemstone-rg --name gemstonecr123 --sku Basic --admin-enabled true
+az acr login --name gemstonecr123
+docker build -t gemstonecr123.azurecr.io/gemstone-app:latest .
+docker push gemstonecr123.azurecr.io/gemstone-app:latest
+az appservice plan create --name gemstone-plan --resource-group gemstone-rg --is-linux --sku B1
+az webapp create --resource-group gemstone-rg --plan gemstone-plan --name gemstone-price-app --deployment-container-image-name gemstonecr123.azurecr.io/gemstone-app:latest
+az webapp config container set --name gemstone-price-app --resource-group gemstone-rg --docker-custom-image-name gemstonecr123.azurecr.io/gemstone-app:latest --docker-registry-server-url https://gemstonecr123.azurecr.io --docker-registry-server-user gemstonecr123 --docker-registry-server-password YOUR_ACR_PASSWORD
+az webapp config appsettings set --resource-group gemstone-rg --name gemstone-price-app --settings WEBSITES_PORT=8000
+
+
+==============================================================
+TROUBLESHOOTING
+==============================================================
+
+PROBLEM: App shows "Application Error" page
+SOLUTION: Run → az webapp log tail --name gemstone-price-app --resource-group gemstone-rg
+          and read the error message.
+
+PROBLEM: Docker push fails - "authentication required"
+SOLUTION: Run → az acr login --name gemstonecr123   (re-login)
+
+PROBLEM: App name already taken
+SOLUTION: Change "gemstone-price-app" to something unique like
+          "gemstone-price-app-2026"
+
+PROBLEM: artifacts/ folder missing on Azure (model not found)
+SOLUTION: Make sure .dockerignore does NOT exclude "artifacts/"
+          Your trained model files must be inside the Docker image.
+
+PROBLEM: Import error "No module named src"
+SOLUTION: Make sure "RUN pip install -e . --no-deps" is in your
+          Dockerfile (already included in Step 2 above).
+
+==============================================================
+ESTIMATED COSTS (Azure B1 Plan)
+==============================================================
+
+  Resource Group     → FREE
+  Container Registry → ~$5/month (Basic tier)
+  App Service B1     → ~$13/month
+  ----------------------------
+  Total              → ~$18/month
+
+  For testing only: Use F1 (Free) plan → $0
+  (F1 has limited CPU/memory, not for production)
+
+==============================================================
+END OF GUIDE
+==============================================================
